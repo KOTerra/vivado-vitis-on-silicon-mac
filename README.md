@@ -1,6 +1,6 @@
 # Vitis-Ready Docker Launcher
 
-This fork updates the original Vivado-on-Silicon-Mac setup to better support **Xilinx Vitis** development by improving automation and adding a shared mount between the host and container.
+This fork updates the original Vivado-on-Silicon-Mac setup to better support **Xilinx Vitis** development by improving automation and adding a shared directory between the host and container.
 
 ---
 
@@ -16,6 +16,7 @@ This version modifies the following scripts:
 - **`launcher.sh`**  
   - Opens a new macOS Terminal window and runs `start_container.sh` automatically.  
   - You must update the script path to point to your local copy of `start_container.sh`.
+  - This can be used with Platypus to create a sandboxed app.
 
 - **`start_container.sh`**  
   - Automatically installs Vitis dependencies inside the container (`libnss3`, `libasound2`, `libsecret-1-0`).  
