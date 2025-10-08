@@ -1,10 +1,14 @@
 #!/bin/zsh
 
 # starts the Docker container and xvcd for USB forwarding
+# now automatically installs Vitis dependencies
 
 script_dir=$(dirname -- "$(readlink -nf $0)";)
 source "$script_dir/header.sh"
 validate_macos
+
+# Host path to your MOUNT repository
+MOUNT_HOST_PATH="/path/to/your/MOUNT"
 
 # this is called when the container stops or ctrl+c is hit
 function stop_container {
@@ -25,24 +29,31 @@ then
 fi
 killall xvcd > /dev/null 2>&1
 
-# run container
-docker run --init --rm --name vivado_container --mount type=bind,source="$script_dir/..",target="/home/user" -p 127.0.0.1:5901:5901 --platform linux/amd64 x64-linux sudo -H -u user bash /home/user/scripts/linux_start.sh &
+# Run container with MOUNT repo mounted
+docker run --init --rm --name vivado_container \
+    --mount type=bind,source="$script_dir/..",target="/home/user" \
+    --mount type=bind,source="$MOUNT_HOST_PATH",target="/home/user/MOUNT" \
+    -p 127.0.0.1:5901:5901 \
+    --platform linux/amd64 \
+    x64-linux sudo -H -u user bash /home/user/scripts/linux_start.sh &
+
 f_echo "Started container"
-sleep 7
-f_echo "Starting VNC viewer"
+sleep 10  # wait for container to fully initialize
+
+# Automatically install Vitis dependencies inside the container
+f_echo "Installing Vitis dependencies..."
+docker exec -it vivado_container bash -c "apt-get update && apt-get install -y --no-install-recommends libnss3 libasound2 libsecret-1-0"
+f_echo "Vitis dependencies installed"
+
+# Start VNC viewer
+f_echo "Starting VNC viewer..."
 vncpass=$( tr -d "\n\r\t " < "$script_dir/vncpasswd" )
-osascript -e "tell application \"Screen Sharing\" to GetURL \"vnc://user:$vncpass@localhost:5901\""
+# Wait until the container's VNC server is ready
+while ! nc -z localhost 5901; do sleep 1; done
+open "vnc://user:$vncpass@localhost:5901"
+
+# Run xvcd for USB forwarding
 f_echo "Running xvcd for USB forwarding..."
-# while vivado_container is running
 while [[ $(docker ps) == *vivado_container* ]]
 do
-    # if there is a running instance of xvcd
-    if pgrep -x "xvcd" > /dev/null
-    then
-        :
-    else
-        eval "$script_dir/xvcd/bin/xvcd > /dev/null 2>&1 &"
-        sleep 2
-    fi
-done
-stop_container
+    if pg
